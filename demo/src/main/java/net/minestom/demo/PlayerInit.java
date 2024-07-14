@@ -9,6 +9,7 @@ import net.minestom.server.advancements.notifications.Notification;
 import net.minestom.server.advancements.notifications.NotificationCenter;
 import net.minestom.server.adventure.MinestomAdventure;
 import net.minestom.server.adventure.audience.Audiences;
+import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
@@ -44,13 +45,17 @@ import net.minestom.server.item.component.PotionContents;
 import net.minestom.server.item.enchant.Enchantment;
 import net.minestom.server.monitoring.BenchmarkManager;
 import net.minestom.server.monitoring.TickMonitor;
+import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.common.CustomReportDetailsPacket;
 import net.minestom.server.network.packet.server.common.ServerLinksPacket;
+import net.minestom.server.network.packet.server.play.BlockBreakAnimationPacket;
+import net.minestom.server.network.packet.server.play.SoundEffectPacket;
 import net.minestom.server.potion.CustomPotionEffect;
 import net.minestom.server.potion.PotionEffect;
 import net.minestom.server.sound.SoundEvent;
 import net.minestom.server.utils.MathUtils;
 import net.minestom.server.utils.NamespaceID;
+import net.minestom.server.utils.PacketUtils;
 import net.minestom.server.utils.time.TimeUnit;
 
 import java.time.Duration;
@@ -59,6 +64,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
+
 
 public class PlayerInit {
 
@@ -116,15 +122,29 @@ public class PlayerInit {
                 player.setRespawnPoint(new Pos(0, 40f, 0));
             })
             .addListener(PlayerHandAnimationEvent.class, event -> {
-                class A {
-                    static boolean b = false;
-                }
-                if (A.b) {
-                    event.getPlayer().getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).removeModifier(NamespaceID.from("test"));
-                } else {
-                    event.getPlayer().getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).addModifier(new AttributeModifier(NamespaceID.from("test"), 0.5, AttributeOperation.ADD_VALUE));
-                }
-                A.b = !A.b;
+                Player player = event.getPlayer();
+                Instance instance = player.getInstance();
+                Point point = player.getTargetBlockPosition(5);
+                Block block = instance.getBlock(
+                        point.blockX(),
+                        point.blockY(),
+                        point.blockZ());
+                if (block == Block.AIR) return;
+                int id = ((point.blockX() & 0xFFF) << 20 | (point.blockZ() & 0xFFF) << 8) | (point.blockY() & 0xFF);
+
+                BlockBreakAnimationPacket packet = new BlockBreakAnimationPacket(id, point, (byte) 7);
+//                SoundEffectPacket packet1 = new SoundEffectPacket()
+                player.sendPacket(packet);
+
+//                class A {
+//                    static boolean b = false;
+//                }
+//                if (A.b) {
+//                    event.getPlayer().getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).removeModifier(NamespaceID.from("test"));
+//                } else {
+//                    event.getPlayer().getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).addModifier(new AttributeModifier(NamespaceID.from("test"), 0.5, AttributeOperation.ADD_VALUE));
+//                }
+//                A.b = !A.b;
             })
 
             .addListener(PlayerSpawnEvent.class, event -> {
