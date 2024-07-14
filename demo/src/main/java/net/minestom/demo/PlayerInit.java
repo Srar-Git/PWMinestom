@@ -2,6 +2,8 @@ package net.minestom.demo;
 
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
+import net.minestom.demo.packet.SoundPacket;
+import net.minestom.demo.packet.effect.block.BlockFlyToPlayerEffect;
 import net.minestom.server.FeatureFlag;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.advancements.FrameType;
@@ -16,9 +18,6 @@ import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.ItemEntity;
 import net.minestom.server.entity.Player;
-import net.minestom.server.entity.attribute.Attribute;
-import net.minestom.server.entity.attribute.AttributeModifier;
-import net.minestom.server.entity.attribute.AttributeOperation;
 import net.minestom.server.entity.damage.Damage;
 import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
@@ -32,6 +31,7 @@ import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.InstanceManager;
 import net.minestom.server.instance.LightingChunk;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockFace;
 import net.minestom.server.instance.block.predicate.BlockPredicate;
 import net.minestom.server.instance.block.predicate.BlockTypeFilter;
 import net.minestom.server.inventory.Inventory;
@@ -45,17 +45,15 @@ import net.minestom.server.item.component.PotionContents;
 import net.minestom.server.item.enchant.Enchantment;
 import net.minestom.server.monitoring.BenchmarkManager;
 import net.minestom.server.monitoring.TickMonitor;
-import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.common.CustomReportDetailsPacket;
 import net.minestom.server.network.packet.server.common.ServerLinksPacket;
 import net.minestom.server.network.packet.server.play.BlockBreakAnimationPacket;
-import net.minestom.server.network.packet.server.play.SoundEffectPacket;
 import net.minestom.server.potion.CustomPotionEffect;
 import net.minestom.server.potion.PotionEffect;
 import net.minestom.server.sound.SoundEvent;
+import net.minestom.server.timer.Scheduler;
+import net.minestom.server.timer.TaskSchedule;
 import net.minestom.server.utils.MathUtils;
-import net.minestom.server.utils.NamespaceID;
-import net.minestom.server.utils.PacketUtils;
 import net.minestom.server.utils.time.TimeUnit;
 
 import java.time.Duration;
@@ -63,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -123,18 +122,36 @@ public class PlayerInit {
             })
             .addListener(PlayerHandAnimationEvent.class, event -> {
                 Player player = event.getPlayer();
+//                SoundPacket.playSound(player, SoundEvent.BLOCK_STONE_BREAK, 1, 1, 5);
                 Instance instance = player.getInstance();
                 Point point = player.getTargetBlockPosition(5);
-                Block block = instance.getBlock(
-                        point.blockX(),
-                        point.blockY(),
-                        point.blockZ());
+                if (point == null) return;
+                Block block = instance.getBlock(point);
                 if (block == Block.AIR) return;
                 int id = ((point.blockX() & 0xFFF) << 20 | (point.blockZ() & 0xFFF) << 8) | (point.blockY() & 0xFF);
 
                 BlockBreakAnimationPacket packet = new BlockBreakAnimationPacket(id, point, (byte) 7);
 //                SoundEffectPacket packet1 = new SoundEffectPacket()
                 player.sendPacket(packet);
+
+                Scheduler scheduler = MinecraftServer.getSchedulerManager();
+                scheduler.scheduleNextTick(() -> player.sendMessage("Hey!"));
+//                scheduler.buildTask(() -> {
+//                    player.sendMessage("Hey! ppp 1s");
+////
+//                }).delay(TaskSchedule.tick(20)).schedule(); // delay task by 20 ticks
+                BlockFlyToPlayerEffect blockFlyToPlayerEffect = new BlockFlyToPlayerEffect(Material.COAL_ORE, new Pos(point), BlockFace.TOP);
+                blockFlyToPlayerEffect.start(player);
+                AtomicInteger i = new AtomicInteger();
+                scheduler.submitTask(()->{
+                    player.sendMessage("Hey! ppp repeat");
+                    i.getAndIncrement();
+                    if (i.get() >5){
+                        return TaskSchedule.stop();
+                    }
+                    return TaskSchedule.tick(20);
+                });
+
 
 //                class A {
 //                    static boolean b = false;
