@@ -118,7 +118,7 @@ public class PlayerInit {
                 event.setSpawningInstance(instance);
                 int x = Math.abs(ThreadLocalRandom.current().nextInt()) % 500 - 250;
                 int z = Math.abs(ThreadLocalRandom.current().nextInt()) % 500 - 250;
-                player.setRespawnPoint(new Pos(0, 40f, 0));
+                player.setRespawnPoint(new Pos(-927, 132, 148));
             })
             .addListener(PlayerHandAnimationEvent.class, event -> {
                 Player player = event.getPlayer();
